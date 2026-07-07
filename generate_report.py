@@ -599,6 +599,90 @@ def generate_html(all_news, organized, issue_num):
 
 
 # ============================================================
+# PushPlus 微信推送
+# ============================================================
+
+def push_to_wechat(html_content, all_news, issue_num):
+    """通过 PushPlus 推送日报摘要到微信"""
+    token = os.environ.get("PUSHPLUS_TOKEN", "")
+    if not token:
+        print("[SKIP] 未配置 PUSHPLUS_TOKEN 环境变量，跳过微信推送")
+        return False
+
+    # 构建微信推送内容（精简版 HTML，适合手机阅读）
+    title = f"国际及国内热点新闻行业日报 · {TODAY_STR}（第{issue_num}期）"
+
+    # 头条速览（取前6条）
+    headlines = []
+    for section in ["domestic", "international", "finance", "tech", "aerospace", "climate"]:
+        items = all_news.get(section, [])
+        if items:
+            for item in items[:1]:
+                headlines.append(f"<li><strong>{escape(item['title'])}</strong></li>")
+    headlines_html = "\n".join(headlines[:6])
+
+    # 各板块摘要（每板块取前3条标题）
+    sections_html = []
+    section_order = ["domestic", "international", "finance", "tech", "aerospace", "commodities", "climate"]
+    for section in section_order:
+        items = all_news.get(section, [])
+        if not items:
+            continue
+        section_name = SECTION_NAMES[section]
+        item_list = []
+        for item in items[:3]:
+            item_list.append(f"<li>{escape(item['title'])}</li>")
+        sections_html.append(f"<h3>{section_name}</h3><ul>{''.join(item_list)}</ul>")
+    sections_content = "\n".join(sections_html)
+
+    # GitHub 仓库链接
+    repo_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + \
+               os.environ.get("GITHUB_REPOSITORY", "yanwx54/news-daily")
+    report_url = f"{repo_url}/blob/main/{REPORT_SLUG}/{REPORT_SLUG}.html"
+
+    content = f"""<div style="font-family:sans-serif;max-width:680px;margin:0 auto;">
+<div style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:24px 20px;border-radius:12px;margin-bottom:20px;">
+<h1 style="font-size:22px;margin:0 0 8px;">国际及国内热点新闻行业日报</h1>
+<p style="margin:0;opacity:.85;font-size:14px;">{TODAY_STR}（{TODAY_WEEKDAY}）· 第 {issue_num} 期 · 北京时间 08:00 自动生成</p>
+</div>
+<h2 style="font-size:17px;border-bottom:2px solid #1447e6;padding-bottom:8px;">今日头条速览</h2>
+<ul style="padding-left:18px;line-height:1.8;">{headlines_html}</ul>
+{sections_content}
+<div style="background:#f0f3f9;padding:16px 20px;border-radius:10px;margin:20px 0;">
+<p style="margin:0;font-size:14px;">📄 完整日报（含图表）：<a href="{report_url}">点击查看</a></p>
+<p style="margin:6px 0 0;font-size:13px;color:#5c6577;">仓库地址：<a href="{repo_url}">{repo_url}</a></p>
+</div>
+<p style="font-size:12px;color:#5c6577;margin-top:16px;">免责声明：本日报由程序自动从公开 RSS 源抓取生成，仅供信息参考，不构成投资建议。</p>
+</div>"""
+
+    payload = {
+        "token": token,
+        "title": title,
+        "content": content,
+        "template": "html",
+    }
+
+    try:
+        print("正在推送到微信（PushPlus）...")
+        resp = requests.post(
+            "https://www.pushplus.plus/send",
+            json=payload,
+            timeout=30,
+            headers={"Content-Type": "application/json"},
+        )
+        result = resp.json()
+        if result.get("code") == 200:
+            print(f"✓ 微信推送成功！{result.get('msg', '')}")
+            return True
+        else:
+            print(f"  [WARN] PushPlus 返回: code={result.get('code')}, msg={result.get('msg')}")
+            return False
+    except Exception as e:
+        print(f"  [ERROR] 微信推送失败: {e}", file=sys.stderr)
+        return False
+
+
+# ============================================================
 # 主流程
 # ============================================================
 
@@ -672,6 +756,9 @@ def main():
     print(f"\n=== 完成！===")
     print(f"报告目录: {report_dir}")
     print(f"报告文件: {html_path}")
+
+    # 9. 推送到微信（PushPlus）
+    push_to_wechat(html, all_news, issue_num)
 
 
 def build_index_page(index_path, issue_num):
