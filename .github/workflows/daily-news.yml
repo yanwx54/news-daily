@@ -20,6 +20,7 @@ jobs:
       - run: python generate_report.py
         env:
           TZ: Asia/Shanghai
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
