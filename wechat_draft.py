@@ -194,12 +194,6 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
 
     sections_content = "\n".join(sections_html)
 
-    # GitHub 仓库链接
-    repo_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + \
-               os.environ.get("GITHUB_REPOSITORY", "yanwx54/news-daily")
-    report_slug = today.strftime("intl-news-daily-%Y%m%d")
-    report_url = f"{repo_url}/blob/main/{report_slug}/{report_slug}.html"
-
     html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:677px;margin:0 auto;padding:15px;">
 
 <div style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:24px 20px;border-radius:12px;margin-bottom:20px;">
@@ -215,7 +209,7 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
 {sections_content}
 
 <div style="background:#f0f3f9;padding:16px 20px;border-radius:10px;margin:20px 0;">
-<p style="margin:0;font-size:14px;">📄 完整日报（含数据图表）：<a href="{report_url}">点击查看</a></p>
+<p style="margin:0;font-size:14px;">📄 完整日报已生成，请查看服务器本地存档。</p>
 </div>
 
 <p style="font-size:12px;color:#888;margin-top:16px;border-top:1px solid #eee;padding-top:10px;">免责声明：本日报由程序自动从公开 RSS 源抓取生成，仅供信息参考，不构成投资建议。数据截至北京时间{today_str} 08:00。</p>
