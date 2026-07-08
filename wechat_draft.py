@@ -250,12 +250,12 @@ def push_to_draft(all_news, issue_num, today_str, today_weekday):
     # 3. 构建文章内容
     content = build_article_content(all_news, issue_num, today_str, today_weekday)
     # 微信草稿标题限制 64 字节，使用精简标题
-    short_date = today_str.replace("年", ".").replace("月", ".").replace("日", "")
-    title = f"热点新闻日报 {short_date}（第{issue_num}期）"
+    title = f"新闻日报·第{issue_num}期"
     # 安全截断：确保 UTF-8 字节数不超过 60
-    while len(title.encode("utf-8")) > 60:
-        title = title[:-4] + "）"
-        break
+    title_bytes = len(title.encode("utf-8"))
+    if title_bytes > 60:
+        title = title[:15]
+    print(f"  草稿标题: {title}（{len(title.encode('utf-8'))} 字节）")
 
     # 摘要（取前两条新闻标题）
     digest_items = []
