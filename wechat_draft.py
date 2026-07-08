@@ -30,6 +30,36 @@ def clean_text(text):
     return text.strip()
 
 
+def strip_source_from_title(title):
+    """从标题中去除来源后缀"""
+    if not title:
+        return title
+    if re.search(r'[\u4e00-\u9fff]', title):
+        match = re.search(r'\s+[-\u2013\u2014]+\s+', title)
+        if match:
+            prefix = title[:match.start()].strip()
+            suffix = title[match.end():].strip()
+            if len(prefix) > 5 and len(suffix) <= 15:
+                return prefix
+    return title
+
+
+def dedup_title_summary(title, summary):
+    """如果摘要和标题重复，返回空"""
+    if not summary:
+        return ""
+    t = title.strip()
+    s = summary.strip()
+    if t == s:
+        return ""
+    if t in s or s in t:
+        return ""
+    t2 = strip_source_from_title(t)
+    if t2 and (t2 in s or s in t2):
+        return ""
+    return s
+
+
 def is_chinese_text(text):
     """判断文本是否主要为中文"""
     if not text:
@@ -202,7 +232,7 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
         ("climate", "气候、安全与社会", "#ea580c"),
     ]
 
-    # 预处理：清理文本、过滤纯英文、每板块最多10条
+    # 预处理：清理文本、去来源后缀、去重复摘要、过滤纯英文、每板块最多10条
     filtered_news = {}
     for section_key, _, _ in section_config:
         raw_items = all_news.get(section_key, [])
@@ -210,11 +240,15 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
         for item in raw_items:
             title = clean_text(item.get("title", ""))
             summary = clean_text(item.get("summary", ""))
+            # 去除标题中的来源后缀
+            title = strip_source_from_title(title)
+            # 如果摘要和标题重复，清空
+            summary = dedup_title_summary(title, summary)
             if not title or not is_chinese_text(title):
                 continue
             cleaned.append({
                 "title": title,
-                "summary": summary[:120],
+                "summary": summary[:120] if summary else "",
                 "link": item.get("link", ""),
                 "source": item.get("source", ""),
             })
