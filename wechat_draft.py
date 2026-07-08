@@ -249,7 +249,13 @@ def push_to_draft(all_news, issue_num, today_str, today_weekday):
 
     # 3. 构建文章内容
     content = build_article_content(all_news, issue_num, today_str, today_weekday)
-    title = f"国际及国内热点新闻行业日报 · {today_str}（第{issue_num}期）"
+    # 微信草稿标题限制 64 字节，使用精简标题
+    short_date = today_str.replace("年", ".").replace("月", ".").replace("日", "")
+    title = f"热点新闻日报 {short_date}（第{issue_num}期）"
+    # 安全截断：确保 UTF-8 字节数不超过 60
+    while len(title.encode("utf-8")) > 60:
+        title = title[:-4] + "）"
+        break
 
     # 摘要（取前两条新闻标题）
     digest_items = []
