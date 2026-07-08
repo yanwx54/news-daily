@@ -9,11 +9,33 @@
 
 import os
 import sys
+import re
 import json
 import time
 import requests
 from datetime import datetime, timezone, timedelta
 from html import escape
+
+
+def clean_text(text):
+    """清理文本中的 HTML 实体、多余空白"""
+    if not text:
+        return ""
+    text = text.replace("&amp;", "&").replace("&nbsp;", " ").replace("&amp;nbsp;", " ")
+    text = text.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').replace("&#39;", "'")
+    text = text.replace("&ldquo;", "\u201c").replace("&rdquo;", "\u201d")
+    text = text.replace("&hellip;", "\u2026")
+    text = re.sub(r'[\u00a0\u2000-\u200b\u202f\u205f\u3000]+', ' ', text)
+    text = re.sub(r' {3,}', '  ', text)
+    return text.strip()
+
+
+def is_chinese_text(text):
+    """判断文本是否主要为中文"""
+    if not text:
+        return False
+    chinese_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return chinese_count / len(text) > 0.3
 
 BEIJING_TZ = timezone(timedelta(hours=8))
 
@@ -180,6 +202,27 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
         ("climate", "气候、安全与社会", "#ea580c"),
     ]
 
+    # 预处理：清理文本、过滤纯英文、每板块最多10条
+    filtered_news = {}
+    for section_key, _, _ in section_config:
+        raw_items = all_news.get(section_key, [])
+        cleaned = []
+        for item in raw_items:
+            title = clean_text(item.get("title", ""))
+            summary = clean_text(item.get("summary", ""))
+            if not title or not is_chinese_text(title):
+                continue
+            cleaned.append({
+                "title": title,
+                "summary": summary[:120],
+                "link": item.get("link", ""),
+                "source": item.get("source", ""),
+            })
+            if len(cleaned) >= 10:
+                break
+        filtered_news[section_key] = cleaned
+
+    all_news = filtered_news
     total_news = sum(len(all_news.get(s, [])) for s, _, _ in section_config)
     max_count = max((len(all_news.get(s, [])) for s, _, _ in section_config), default=1)
 
@@ -306,12 +349,9 @@ def push_to_draft(all_news, issue_num, today_str, today_weekday):
 
     # 3. 构建文章内容
     content = build_article_content(all_news, issue_num, today_str, today_weekday)
-    # 微信草稿标题限制 64 字节，使用精简标题
-    title = f"新闻日报·第{issue_num}期"
-    # 安全截断：确保 UTF-8 字节数不超过 60
-    title_bytes = len(title.encode("utf-8"))
-    if title_bytes > 60:
-        title = title[:15]
+    # 标题格式：热点新闻行业日报_20260708
+    title_date = datetime.now(BEIJING_TZ).strftime("%Y%m%d")
+    title = f"热点新闻行业日报_{title_date}"
     print(f"  草稿标题: {title}（{len(title.encode('utf-8'))} 字节）")
 
     # 摘要（取前两条新闻标题）
