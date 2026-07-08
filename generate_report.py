@@ -249,6 +249,37 @@ def is_chinese_text(text):
     return chinese_count / len(text) > 0.3
 
 
+def resolve_news_link(entry):
+    """从 RSS entry 中提取原始新闻链接，优先用 source url，避免 Google News 重定向链接"""
+    # feedparser 会把 <source url="..."> 解析到 entry.source 或 entry.tags
+    # 方式1: entry.source 可能是 dict {"href": url, "title": name}
+    source = entry.get("source")
+    if isinstance(source, dict):
+        src_url = source.get("href", "") or source.get("url", "")
+        if src_url and "news.google.com" not in src_url:
+            return src_url
+    
+    # 方式2: 遍历 tags 找 source 链接
+    for tag in entry.get("tags", []):
+        tag_url = tag.get("href", "") if isinstance(tag, dict) else ""
+        if tag_url and "news.google.com" not in tag_url:
+            return tag_url
+    
+    # 方式3: 原始 link（BBC 等非 Google News 源直接就是原始链接）
+    link = entry.get("link", "")
+    if link and "news.google.com" not in link:
+        return link
+    
+    # 方式4: Google News 重定向链接，尝试从 summary 中提取原始链接
+    summary = entry.get("summary", "")
+    url_match = re.search(r'href=["\'](https?://(?!news\.google\.com)[^"\']+)["\']', summary)
+    if url_match:
+        return url_match.group(1)
+    
+    # 无法解析原始链接，返回空（公众号里不显示链接比显示无效链接更好）
+    return ""
+
+
 def fetch_rss(source):
     """抓取单个 RSS 源，返回新闻条目列表"""
     try:
@@ -261,7 +292,8 @@ def fetch_rss(source):
         for entry in feed.entries[:15]:  # 每源最多15条
             title = entry.get("title", "").strip()
             summary = entry.get("summary", "").strip()
-            link = entry.get("link", "")
+            # 提取原始新闻链接（避免 Google News 重定向）
+            link = resolve_news_link(entry)
             published = entry.get("published", entry.get("updated", ""))
 
             # 清理 HTML 标签和实体
