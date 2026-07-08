@@ -1,3 +1,9 @@
 .trae-html-share-packages/
 *.tmp
 *.log
+__pycache__/
+*.pyc
+.wechat_token.json
+.wechat_thumb.json
+.env
+logs/
