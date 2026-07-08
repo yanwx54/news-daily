@@ -248,8 +248,19 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
             summary = dedup_title_summary(title, summary)
             if not title or not is_chinese_text(title):
                 continue
-            # 没有主要内容的新闻不要
+            # 如果提取后摘要为空，尝试用原始摘要（清理后）兜底
             if not summary:
+                raw_summary = clean_text(item.get("summary", ""))
+                # 去掉标题部分后的内容
+                if raw_summary and title in raw_summary:
+                    after_title = raw_summary[raw_summary.find(title) + len(title):].strip()
+                    if len(after_title) > 10:
+                        summary = after_title
+                # 如果还是空，用标题本身的关键信息生成摘要
+                if not summary and raw_summary:
+                    summary = raw_summary[:150]
+            # 最终仍无内容的跳过
+            if not summary or len(summary) < 5:
                 continue
             all_items.append({
                 "title": title,
