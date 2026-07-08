@@ -297,12 +297,12 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
     html = f"""<section style="max-width:677px;margin:0 auto;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 
 <section style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:28px 22px;border-radius:0 0 14px 14px;margin-bottom:24px;">
-<p style="font-size:11px;letter-spacing:2.5px;opacity:0.6;margin:0 0 10px;font-weight:600;">TOP 15 DAILY</p>
-<p style="font-size:22px;font-weight:800;margin:0 0 6px;line-height:1.3;">热点新闻行业日报</p>
+<p style="font-size:11px;letter-spacing:2.5px;opacity:0.6;margin:0 0 10px;font-weight:600;">NBA DAILY</p>
+<p style="font-size:22px;font-weight:800;margin:0 0 6px;line-height:1.3;">NBA篮球新闻日报</p>
 <p style="margin:0;opacity:0.82;font-size:14px;">{today_str}（{today_weekday}）· 第 {issue_num} 期</p>
 </section>
 
-<p style="font-size:14px;color:#5c6577;margin:0 0 20px;line-height:1.6;">今日最热 <strong style="color:#1447e6;">{len(top_news)}</strong> 条新闻速递，涵盖国内外时政、财经、科技、社会等领域。</p>
+<p style="font-size:14px;color:#5c6577;margin:0 0 20px;line-height:1.6;">今日最热 <strong style="color:#1447e6;">{len(top_news)}</strong> 条NBA篮球新闻速递，涵盖赛事战报、交易签约、球星动态、选秀前瞻。</p>
 
 {news_html}
 
@@ -329,9 +329,9 @@ def push_to_draft(all_news, issue_num, today_str, today_weekday):
 
     # 3. 构建文章内容
     content = build_article_content(all_news, issue_num, today_str, today_weekday)
-    # 标题格式：热点新闻行业日报_20260708
+    # 标题格式：NBA篮球新闻日报_20260708
     title_date = datetime.now(BEIJING_TZ).strftime("%Y%m%d")
-    title = f"热点新闻行业日报_{title_date}"
+    title = f"NBA篮球新闻日报_{title_date}"
     print(f"  草稿标题: {title}（{len(title.encode('utf-8'))} 字节）")
 
     # 摘要（取前两条新闻标题）
@@ -340,14 +340,14 @@ def push_to_draft(all_news, issue_num, today_str, today_weekday):
         items = all_news.get(section, [])
         if items:
             digest_items.append(items[0]["title"][:30])
-    digest = "；".join(digest_items)[:120] if digest_items else "每日国际及国内热点新闻速递"
+    digest = "；".join(digest_items)[:120] if digest_items else "每日NBA篮球热点新闻速递"
 
     # 4. 创建草稿
     url = f"https://api.weixin.qq.com/cgi-bin/draft/add?access_token={access_token}"
 
     article = {
         "title": title,
-        "author": "新闻日报Bot",
+        "author": "NBA日报Bot",
         "digest": digest,
         "content": content,
         "need_open_comment": 0,
