@@ -248,6 +248,9 @@ def build_article_content(all_news, issue_num, today_str, today_weekday):
             summary = dedup_title_summary(title, summary)
             if not title or not is_chinese_text(title):
                 continue
+            # 没有主要内容的新闻不要
+            if not summary:
+                continue
             all_items.append({
                 "title": title,
                 "summary": summary[:150] if summary else "",
