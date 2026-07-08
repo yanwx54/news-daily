@@ -45,18 +45,35 @@ def strip_source_from_title(title):
 
 
 def dedup_title_summary(title, summary):
-    """如果摘要和标题重复，返回空"""
+    """从摘要中提取标题之外的额外内容作为主要内容"""
     if not summary:
         return ""
     t = title.strip()
     s = summary.strip()
+    
+    # 如果摘要以标题开头，提取标题之后的内容
+    if s.startswith(t):
+        extra = s[len(t):].strip()
+        # 去掉开头的分隔符 &nbsp; 等
+        extra = re.sub(r'^[\s\u00a0&nbsp;]+', '', extra)
+        if len(extra) > 10:
+            return extra
+        return ""
+    
+    # 如果去掉来源后缀的标题和摘要开头匹配
+    t2 = strip_source_from_title(t)
+    if t2 and s.startswith(t2):
+        extra = s[len(t2):].strip()
+        extra = re.sub(r'^[\s\u00a0]+', '', extra)
+        if len(extra) > 10:
+            return extra
+        return ""
+    
+    # 摘要和标题完全一样
     if t == s:
         return ""
-    if t in s or s in t:
-        return ""
-    t2 = strip_source_from_title(t)
-    if t2 and (t2 in s or s in t2):
-        return ""
+    
+    # 摘要不以标题开头，直接用摘要
     return s
 
 
