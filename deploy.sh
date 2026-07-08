@@ -48,7 +48,8 @@ fi
 # 3. 安装 Python 依赖
 echo ""
 echo "[3/6] 安装 Python 依赖..."
-pip3 install -r requirements.txt --quiet
+pip3 install --upgrade pip 2>/dev/null || true
+pip3 install -r requirements.txt
 
 # 4. 配置环境变量
 echo ""
