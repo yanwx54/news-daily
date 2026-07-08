@@ -182,6 +182,29 @@ def get_issue_number():
 # RSS 抓取
 # ============================================================
 
+def clean_text(text):
+    """清理文本中的 HTML 实体、多余空白和特殊符号"""
+    if not text:
+        return ""
+    # 清理常见 HTML 实体
+    text = text.replace("&amp;", "&").replace("&nbsp;", " ").replace("&amp;nbsp;", " ")
+    text = text.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').replace("&#39;", "'")
+    text = text.replace("&ldquo;", "\u201c").replace("&rdquo;", "\u201d")
+    text = text.replace("&hellip;", "\u2026")
+    # 清理多余空白
+    text = re.sub(r'[\u00a0\u2000-\u200b\u202f\u205f\u3000]+', ' ', text)
+    text = re.sub(r' {3,}', '  ', text)  # 多个空格压缩为两个
+    return text.strip()
+
+
+def is_chinese_text(text):
+    """判断文本是否主要为中文（含中文字符占比 > 30%）"""
+    if not text:
+        return False
+    chinese_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return chinese_count / len(text) > 0.3
+
+
 def fetch_rss(source):
     """抓取单个 RSS 源，返回新闻条目列表"""
     try:
@@ -197,10 +220,16 @@ def fetch_rss(source):
             link = entry.get("link", "")
             published = entry.get("published", entry.get("updated", ""))
 
-            # 清理 HTML 标签
+            # 清理 HTML 标签和实体
             summary = re.sub(r'<[^>]+>', '', summary)
+            title = clean_text(title)
+            summary = clean_text(summary)
             if len(summary) > 200:
                 summary = summary[:197] + "..."
+
+            # 过滤纯英文新闻（只保留含中文的新闻）
+            if title and not is_chinese_text(title):
+                continue
 
             if title:
                 items.append({
@@ -234,6 +263,8 @@ def fetch_all_news():
             if key not in seen:
                 seen.add(key)
                 unique.append(item)
+        # 每板块最多10条
+        unique = unique[:10]
         all_news[section] = unique
         print(f"  → 共 {len(unique)} 条")
     return all_news
