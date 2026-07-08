@@ -2,7 +2,7 @@
 """
 每日国际及国内热点新闻行业日报自动生成脚本
 从多个 RSS 源抓取新闻，分类整理后生成 HTML 日报。
-设计为在 GitHub Actions 中运行，无需本地电脑开机。
+支持部署到服务器或 GitHub Actions，可推送到微信公众号草稿和 PushPlus。
 """
 
 import os
@@ -17,6 +17,10 @@ from urllib.parse import urlparse
 
 import feedparser
 import requests
+
+# 导入微信公众号草稿推送模块
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import wechat_draft
 
 # ============================================================
 # 配置
@@ -757,7 +761,10 @@ def main():
     print(f"报告目录: {report_dir}")
     print(f"报告文件: {html_path}")
 
-    # 9. 推送到微信（PushPlus）
+    # 9. 推送到微信公众号草稿箱
+    wechat_draft.push_to_draft(all_news, issue_num, TODAY_STR, TODAY_WEEKDAY)
+
+    # 10. 推送到微信（PushPlus，作为备选通知渠道）
     push_to_wechat(html, all_news, issue_num)
 
 
