@@ -167,68 +167,125 @@ def get_permanent_thumb(access_token):
 
 
 def build_article_content(all_news, issue_num, today_str, today_weekday):
-    """构建微信公众号文章 HTML 内容（适配微信渲染）"""
-    today = datetime.now(BEIJING_TZ)
-    today_date = today.strftime("%Y-%m-%d")
+    """构建微信公众号文章 HTML 内容 - 完整版日报，现代排版，全内联样式兼容微信"""
 
-    # 头条速览
-    headlines = []
-    for section in ["domestic", "international", "finance", "tech", "aerospace", "climate"]:
-        items = all_news.get(section, [])
-        if items:
-            for item in items[:1]:
-                link_html = f' <a href="{escape(item["link"])}">[原文]</a>' if item.get("link") else ""
-                headlines.append(f'<li><strong>{escape(item["title"])}</strong>{link_html}</li>')
-    headlines_html = "\n".join(headlines[:6])
+    # 板块配置：名称、主色
+    section_config = [
+        ("domestic", "国内热点新闻", "#1447e6"),
+        ("international", "国际政治与地缘动态", "#d93025"),
+        ("finance", "全球财经与市场", "#0f9d58"),
+        ("tech", "科技与AI产业前沿", "#7c3aed"),
+        ("aerospace", "航天与前沿科技", "#0891b2"),
+        ("commodities", "大宗商品与外汇", "#c9a227"),
+        ("climate", "气候、安全与社会", "#ea580c"),
+    ]
 
-    # 各板块
-    section_names = {
-        "domestic": "国内热点新闻",
-        "international": "国际政治与地缘动态",
-        "finance": "全球财经与市场",
-        "tech": "科技与AI产业前沿",
-        "aerospace": "航天与前沿科技",
-        "commodities": "大宗商品与外汇",
-        "climate": "气候、安全与社会",
-    }
+    total_news = sum(len(all_news.get(s, [])) for s, _, _ in section_config)
+    max_count = max((len(all_news.get(s, [])) for s, _, _ in section_config), default=1)
 
-    sections_html = []
-    section_order = ["domestic", "international", "finance", "tech", "aerospace", "commodities", "climate"]
-    for section in section_order:
-        items = all_news.get(section, [])
+    # === 1. 统计进度条 ===
+    stat_rows = []
+    for section_key, section_name, color in section_config:
+        count = len(all_news.get(section_key, []))
+        if count == 0:
+            continue
+        bar_pct = int(count / max_count * 100)
+        stat_rows.append(
+            f'<section style="margin-bottom:7px;font-size:0;">'
+            f'<span style="display:inline-block;width:72px;font-size:12px;color:#1a2233;vertical-align:middle;">{escape(section_name[:4])}</span>'
+            f'<span style="display:inline-block;width:55%;height:14px;background:#eef0f5;border-radius:7px;vertical-align:middle;overflow:hidden;">'
+            f'<span style="display:block;height:100%;width:{bar_pct}%;background:{color};border-radius:7px;"></span>'
+            f'</span>'
+            f'<span style="display:inline-block;font-size:12px;color:#5c6577;margin-left:8px;vertical-align:middle;">{count}条</span>'
+            f'</section>'
+        )
+    stats_html = "\n".join(stat_rows)
+
+    # === 2. 头条速览（各板块第1条）===
+    headline_items = []
+    for section_key, section_name, color in section_config:
+        items = all_news.get(section_key, [])
         if not items:
             continue
-        section_name = section_names.get(section, section)
-        item_list = []
-        for item in items[:5]:
-            link_html = f' <a href="{escape(item["link"])}">[原文]</a>' if item.get("link") else ""
-            summary = escape(item["summary"][:100]) if item.get("summary") else ""
-            item_list.append(f'<li>{escape(item["title"])}{link_html}<br/><span style="color:#888;font-size:13px;">{summary}</span></li>')
-        sections_html.append(f'<h2 style="color:#1447e6;border-bottom:2px solid #1447e6;padding-bottom:6px;">{section_name}</h2><ul style="padding-left:16px;line-height:1.8;">{"".join(item_list)}</ul>')
+        item = items[0]
+        link_html = f' <a href="{escape(item["link"])}" style="font-size:12px;color:{color};text-decoration:none;">原文</a>' if item.get("link") else ""
+        headline_items.append(
+            f'<section style="padding:10px 14px;border-left:3px solid {color};margin-bottom:8px;background:#f8f9fc;border-radius:0 6px 6px 0;">'
+            f'<span style="font-size:11px;font-weight:700;color:{color};letter-spacing:1px;">{escape(section_name[:4])}</span>'
+            f'<p style="font-size:14.5px;font-weight:700;color:#1a2233;margin:3px 0 0;line-height:1.5;">{escape(item["title"])}{link_html}</p>'
+            f'</section>'
+        )
+    headlines_html = "\n".join(headline_items)
 
-    sections_content = "\n".join(sections_html)
+    # === 3. 各板块完整新闻 ===
+    sections_html = []
+    for idx, (section_key, section_name, color) in enumerate(section_config):
+        items = all_news.get(section_key, [])
+        if not items:
+            continue
+        section_num = idx + 2  # 02 开始
 
-    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:677px;margin:0 auto;padding:15px;">
+        # 板块标题
+        section_header = (
+            f'<section style="margin-bottom:16px;margin-top:28px;">'
+            f'<section style="border-bottom:2px solid {color};padding-bottom:8px;margin-bottom:14px;">'
+            f'<span style="display:inline-block;background:{color};color:#fff;font-size:12px;font-weight:700;'
+            f'padding:2px 8px;border-radius:4px;margin-right:8px;">{section_num:02d}</span>'
+            f'<span style="font-size:17px;font-weight:800;color:#1a2233;">{escape(section_name)}</span>'
+            f'<span style="float:right;font-size:12px;color:#9aa3b2;padding-top:4px;">{len(items)}条</span>'
+            f'</section>'
+        )
 
-<div style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:24px 20px;border-radius:12px;margin-bottom:20px;">
-<h1 style="font-size:22px;margin:0 0 8px;font-weight:800;">国际及国内热点新闻行业日报</h1>
-<p style="margin:0;opacity:0.85;font-size:14px;">{today_str}（{today_weekday}）· 第 {issue_num} 期</p>
-</div>
+        # 新闻条目（全部）
+        news_items = []
+        for item in items:
+            link_html = f' <a href="{escape(item["link"])}" style="font-size:12px;color:{color};text-decoration:none;">[原文]</a>' if item.get("link") else ""
+            summary = escape(item["summary"][:120]) if item.get("summary") else ""
+            summary_html = f'<p style="font-size:13px;color:#5c6577;margin:2px 0 0;line-height:1.6;">{summary}</p>' if summary else ""
+            news_items.append(
+                f'<section style="padding-left:14px;border-left:3px solid #e3e6ec;margin-bottom:12px;">'
+                f'<p style="font-size:14.5px;font-weight:700;color:#1a2233;margin:0;line-height:1.5;">{escape(item["title"])}{link_html}</p>'
+                f'{summary_html}'
+                f'</section>'
+            )
 
-<h2 style="color:#1447e6;font-size:17px;border-bottom:2px solid #1447e6;padding-bottom:8px;">📌 今日头条速览</h2>
-<ul style="padding-left:18px;line-height:1.8;">
+        sections_html.append(section_header + "\n".join(news_items) + "</section>")
+
+    full_sections = "\n".join(sections_html)
+
+    # === 组装完整文章 ===
+    html = f"""<section style="max-width:677px;margin:0 auto;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+
+<section style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:28px 22px;border-radius:0 0 14px 14px;margin-bottom:24px;">
+<p style="font-size:11px;letter-spacing:2.5px;opacity:0.6;margin:0 0 10px;font-weight:600;">DAILY BRIEFING</p>
+<p style="font-size:22px;font-weight:800;margin:0 0 6px;line-height:1.3;">国际及国内热点新闻行业日报</p>
+<p style="margin:0;opacity:0.82;font-size:14px;">{today_str}（{today_weekday}）· 第 {issue_num} 期 · 共 {total_news} 条</p>
+</section>
+
+<section style="margin-bottom:28px;">
+<p style="font-size:13px;font-weight:700;color:#1a2233;margin:0 0 12px;letter-spacing:0.5px;">今日各板块新闻数量</p>
+{stats_html}
+</section>
+
+<section style="margin-bottom:28px;">
+<p style="font-size:13px;font-weight:700;color:#1a2233;margin:0 0 12px;letter-spacing:0.5px;">今日头条速览</p>
 {headlines_html}
-</ul>
+</section>
 
-{sections_content}
+{full_sections}
 
-<div style="background:#f0f3f9;padding:16px 20px;border-radius:10px;margin:20px 0;">
-<p style="margin:0;font-size:14px;">📄 完整日报已生成，请查看服务器本地存档。</p>
-</div>
+<section style="background:linear-gradient(135deg,#0f1e4d 0%,#1a3a8f 100%);color:#fff;border-radius:12px;padding:22px 20px;margin:28px 0 20px;">
+<p style="font-size:15px;font-weight:800;margin:0 0 12px;color:#fff;">明日值得关注</p>
+<p style="font-size:13px;color:#dfe6f5;margin:0 0 8px;line-height:1.7;"><strong style="color:#7db4ff;">全球市场</strong>　关注美股及亚太股市开盘走势，关税政策对供应链影响持续发酵</p>
+<p style="font-size:13px;color:#dfe6f5;margin:0 0 8px;line-height:1.7;"><strong style="color:#7db4ff;">科技前沿</strong>　AI 大模型及芯片产业最新动态，关注重大产品发布或融资事件</p>
+<p style="font-size:13px;color:#dfe6f5;margin:0 0 8px;line-height:1.7;"><strong style="color:#7db4ff;">地缘局势</strong>　中东、红海及主要地区冲突演变，关注外交进展</p>
+<p style="font-size:13px;color:#dfe6f5;margin:0 0 8px;line-height:1.7;"><strong style="color:#7db4ff;">气候预警</strong>　北半球极端天气持续，关注灾害预警及应对措施</p>
+<p style="font-size:13px;color:#dfe6f5;margin:0;line-height:1.7;"><strong style="color:#7db4ff;">国内政策</strong>　关注最新政策法规发布及经济数据公布</p>
+</section>
 
-<p style="font-size:12px;color:#888;margin-top:16px;border-top:1px solid #eee;padding-top:10px;">免责声明：本日报由程序自动从公开 RSS 源抓取生成，仅供信息参考，不构成投资建议。数据截至北京时间{today_str} 08:00。</p>
+<p style="font-size:12px;color:#9aa3b2;margin-top:20px;border-top:1px solid #e3e6ec;padding-top:12px;line-height:1.6;">免责声明：本日报由程序自动从公开 RSS 源抓取生成，仅供信息参考，不构成任何投资建议。数据截至北京时间{today_str} 08:00。</p>
 
-</div>"""
+</section>"""
 
     return html
 
