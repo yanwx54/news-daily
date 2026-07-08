@@ -639,11 +639,6 @@ def push_to_wechat(html_content, all_news, issue_num):
         sections_html.append(f"<h3>{section_name}</h3><ul>{''.join(item_list)}</ul>")
     sections_content = "\n".join(sections_html)
 
-    # GitHub 仓库链接
-    repo_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + \
-               os.environ.get("GITHUB_REPOSITORY", "yanwx54/news-daily")
-    report_url = f"{repo_url}/blob/main/{REPORT_SLUG}/{REPORT_SLUG}.html"
-
     content = f"""<div style="font-family:sans-serif;max-width:680px;margin:0 auto;">
 <div style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:24px 20px;border-radius:12px;margin-bottom:20px;">
 <h1 style="font-size:22px;margin:0 0 8px;">国际及国内热点新闻行业日报</h1>
@@ -653,8 +648,7 @@ def push_to_wechat(html_content, all_news, issue_num):
 <ul style="padding-left:18px;line-height:1.8;">{headlines_html}</ul>
 {sections_content}
 <div style="background:#f0f3f9;padding:16px 20px;border-radius:10px;margin:20px 0;">
-<p style="margin:0;font-size:14px;">📄 完整日报（含图表）：<a href="{report_url}">点击查看</a></p>
-<p style="margin:6px 0 0;font-size:13px;color:#5c6577;">仓库地址：<a href="{repo_url}">{repo_url}</a></p>
+<p style="margin:0;font-size:14px;">📄 完整日报已生成，请查看服务器本地存档。</p>
 </div>
 <p style="font-size:12px;color:#5c6577;margin-top:16px;">免责声明：本日报由程序自动从公开 RSS 源抓取生成，仅供信息参考，不构成投资建议。</p>
 </div>"""
@@ -684,6 +678,45 @@ def push_to_wechat(html_content, all_news, issue_num):
     except Exception as e:
         print(f"  [ERROR] 微信推送失败: {e}", file=sys.stderr)
         return False
+
+
+# ============================================================
+# 本地留存清理
+# ============================================================
+
+MAX_REPORT_DAYS = 30  # 保留最近30天的日报，更早的自动删除
+
+
+def cleanup_old_reports(max_days=MAX_REPORT_DAYS):
+    """清理过期的日报目录，只保留最近 max_days 天的报告"""
+    print(f"\n--- 清理过期日报（保留最近 {max_days} 天）---")
+    cutoff_date = TODAY - timedelta(days=max_days)
+    cutoff_str = cutoff_date.strftime("%Y%m%d")
+    removed = 0
+
+    for entry in os.listdir(WORKSPACE):
+        if not entry.startswith("intl-news-daily-"):
+            continue
+        entry_path = os.path.join(WORKSPACE, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        # 从目录名提取日期
+        date_match = re.search(r'(\d{4})(\d{2})(\d{2})', entry)
+        if not date_match:
+            continue
+        date_str = "".join(date_match.groups())
+        if date_str < cutoff_str:
+            try:
+                shutil.rmtree(entry_path)
+                removed += 1
+                print(f"  已删除: {entry}")
+            except Exception as e:
+                print(f"  [WARN] 删除 {entry} 失败: {e}", file=sys.stderr)
+
+    if removed == 0:
+        print("  无过期日报需要清理")
+    else:
+        print(f"  共清理 {removed} 个过期日报目录")
 
 
 # ============================================================
@@ -767,6 +800,9 @@ def main():
     # 10. 推送到微信（PushPlus，作为备选通知渠道）
     push_to_wechat(html, all_news, issue_num)
 
+    # 11. 清理过期日报（保留最近30天）
+    cleanup_old_reports()
+
 
 def build_index_page(index_path, issue_num):
     """生成/更新首页索引，列出所有日报"""
@@ -813,11 +849,11 @@ def build_index_page(index_path, issue_num):
 <body>
 <div class="container">
   <h1>每日国际及国内热点新闻行业日报</h1>
-  <p class="subtitle">GitHub Actions 自动生成 · 每日 08:00 北京时间推送 · 第 {issue_num} 期</p>
+  <p class="subtitle">每日 08:00 北京时间自动生成 · 第 {issue_num} 期</p>
   <ul>
 {items_html}
   </ul>
-  <p class="footer">本仓库由 GitHub Actions 自动维护，无需本地电脑开机。</p>
+  <p class="footer">服务器本地自动生成 · 保留最近30天日报存档</p>
 </div>
 </body>
 </html>'''
