@@ -19,6 +19,8 @@ BEIJING_TZ = timezone(timedelta(hours=8))
 
 # token 缓存文件
 TOKEN_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".wechat_token.json")
+# 永久封面图 media_id 缓存（避免每天重复上传，永久素材有数量限制）
+THUMB_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".wechat_thumb.json")
 
 
 def get_access_token():
@@ -108,22 +110,30 @@ def upload_thumb_image(access_token, image_path=None):
 
 
 def get_permanent_thumb(access_token):
-    """获取或创建永久封面图（使用临时素材接口上传一个简单图片）"""
-    # 生成一个简单的 200x200 蓝色 PNG 作为封面
-    # 使用最小化的 PNG 数据
+    """获取或创建永久封面图，使用永久素材接口上传并缓存 media_id"""
     import struct
     import zlib
 
-    width, height = 200, 200
+    # 1. 检查缓存文件
+    if os.path.exists(THUMB_CACHE):
+        try:
+            with open(THUMB_CACHE, "r", encoding="utf-8") as f:
+                cache = json.load(f)
+                cached_media_id = cache.get("thumb_media_id", "")
+                if cached_media_id:
+                    print(f"  使用缓存的永久封面图: media_id={cached_media_id}")
+                    return cached_media_id
+        except (json.JSONDecodeError, KeyError):
+            pass
 
-    # 创建原始像素数据（蓝色 #1447e6）
+    # 2. 生成 200x200 蓝色 PNG
+    width, height = 200, 200
     raw = b""
     for y in range(height):
-        raw += b"\x00"  # filter byte
+        raw += b"\x00"
         for x in range(width):
-            raw += b"\x14\x47\xe6\xff"  # RGBA
+            raw += b"\x14\x47\xe6\xff"
 
-    # PNG 编码
     def png_chunk(chunk_type, data):
         c = chunk_type + data
         crc = struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
@@ -136,16 +146,20 @@ def get_permanent_thumb(access_token):
     png += png_chunk(b"IDAT", compressed)
     png += png_chunk(b"IEND", b"")
 
-    # 上传为临时素材
-    url = f"https://api.weixin.qq.com/cgi-bin/media/upload?access_token={access_token}&type=image"
+    # 3. 上传为永久素材（draft/add 要求永久 media_id）
+    url = f"https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={access_token}&type=image"
     try:
         resp = requests.post(url, files={"media": ("thumb.png", png, "image/png")}, timeout=60)
         data = resp.json()
         if "media_id" in data:
-            print(f"  临时封面图上传成功: media_id={data['media_id']}")
-            return data["media_id"]
+            media_id = data["media_id"]
+            print(f"  永久封面图上传成功: media_id={media_id}")
+            # 缓存
+            with open(THUMB_CACHE, "w", encoding="utf-8") as f:
+                json.dump({"thumb_media_id": media_id}, f)
+            return media_id
         else:
-            print(f"  [ERROR] 封面图上传失败: {data}")
+            print(f"  [ERROR] 永久封面图上传失败: {data}")
             return None
     except Exception as e:
         print(f"  [ERROR] 封面图上传异常: {e}", file=sys.stderr)
