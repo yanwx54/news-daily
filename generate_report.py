@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-每日国际及国内热点新闻行业日报自动生成脚本
+每日NBA篮球新闻日报自动生成脚本
 从多个 RSS 源抓取新闻，分类整理后生成 HTML 日报。
 支持部署到服务器或 GitHub Actions，可推送到微信公众号草稿和 PushPlus。
 """
@@ -31,82 +31,60 @@ TODAY = datetime.now(BEIJING_TZ)
 TODAY_STR = TODAY.strftime("%Y年%m月%d日")
 TODAY_DATE_STR = TODAY.strftime("%Y-%m-%d")
 TODAY_WEEKDAY = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][TODAY.weekday()]
-REPORT_SLUG = TODAY.strftime("intl-news-daily-%Y%m%d")
+REPORT_SLUG = TODAY.strftime("nba-daily-%Y%m%d")
 ISSUE_DATE_KEY = TODAY.strftime("%Y%m%d")
 
 WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 ECHARTS_SRC = os.path.join(WORKSPACE, "echarts", "echarts.min.js")
 ISSUE_TRACKER = os.path.join(WORKSPACE, "issue_tracker.json")
 
-# RSS 新闻源
-# 使用 Google News RSS（聚合多源）+ BBC RSS 作为国际补充
+# RSS 新闻源 - NBA篮球
 RSS_SOURCES = {
-    "domestic": [
+    "games": [
         {
-            "name": "Google News 国内",
-            "url": "https://news.google.com/rss?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "name": "Google News NBA赛事",
+            "url": "https://news.google.com/rss/search?q=NBA+比赛+OR+赛季+OR+季后赛+OR+总决赛+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
             "lang": "zh",
         },
         {
-            "name": "Google News 中国要闻",
-            "url": "https://news.google.com/rss/search?q=中国+OR+国内+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-            "lang": "zh",
-        },
-    ],
-    "international": [
-        {
-            "name": "Google News 国际",
-            "url": "https://news.google.com/rss/search?q=国际+OR+全球+OR+world+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-            "lang": "zh",
-        },
-        {
-            "name": "BBC World",
-            "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
-            "lang": "en",
-        },
-    ],
-    "finance": [
-        {
-            "name": "Google News 财经",
-            "url": "https://news.google.com/rss/search?q=财经+OR+股市+OR+经济+OR+market+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-            "lang": "zh",
-        },
-        {
-            "name": "BBC Business",
-            "url": "http://feeds.bbci.co.uk/news/business/rss.xml",
-            "lang": "en",
-        },
-    ],
-    "tech": [
-        {
-            "name": "Google News 科技AI",
-            "url": "https://news.google.com/rss/search?q=AI+OR+科技+OR+人工智能+OR+technology+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-            "lang": "zh",
-        },
-        {
-            "name": "BBC Technology",
-            "url": "http://feeds.bbci.co.uk/news/technology/rss.xml",
-            "lang": "en",
-        },
-    ],
-    "aerospace": [
-        {
-            "name": "Google News 航天",
-            "url": "https://news.google.com/rss/search?q=航天+OR+火箭+OR+太空+OR+space+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "name": "Google News 篮球赛报",
+            "url": "https://news.google.com/rss/search?q=篮球+比分+OR+绝杀+OR+三双+OR+MVP+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
             "lang": "zh",
         },
     ],
-    "commodities": [
+    "trades": [
         {
-            "name": "Google News 大宗商品",
-            "url": "https://news.google.com/rss/search?q=原油+OR+黄金+OR+外汇+OR+oil+OR+gold+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "name": "Google News NBA交易",
+            "url": "https://news.google.com/rss/search?q=NBA+交易+OR+签约+OR+转会+OR+自由球员+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "lang": "zh",
+        },
+        {
+            "name": "Google News NBA薪资",
+            "url": "https://news.google.com/rss/search?q=NBA+合同+OR+薪资+OR+顶薪+OR+续约+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
             "lang": "zh",
         },
     ],
-    "climate": [
+    "stars": [
         {
-            "name": "Google News 气候安全",
-            "url": "https://news.google.com/rss/search?q=高温+OR+极端天气+OR+climate+OR+洪水+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "name": "Google News NBA球星",
+            "url": "https://news.google.com/rss/search?q=NBA+詹姆斯+OR+库里+OR+杜兰特+OR+东契奇+OR+约基奇+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "lang": "zh",
+        },
+        {
+            "name": "Google News NBA球员动态",
+            "url": "https://news.google.com/rss/search?q=NBA+球星+OR+伤病+OR+复出+OR+退役+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "lang": "zh",
+        },
+    ],
+    "draft": [
+        {
+            "name": "Google News NBA选秀",
+            "url": "https://news.google.com/rss/search?q=NBA+选秀+OR+新秀+OR+状元+OR+乐透+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+            "lang": "zh",
+        },
+        {
+            "name": "Google News NBA前瞻",
+            "url": "https://news.google.com/rss/search?q=NBA+前瞻+OR+预测+OR+排名+OR+实力榜+when:1d&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
             "lang": "zh",
         },
     ],
@@ -114,38 +92,25 @@ RSS_SOURCES = {
 
 # 板块中文名
 SECTION_NAMES = {
-    "domestic": "国内热点新闻",
-    "international": "国际政治与地缘动态",
-    "finance": "全球财经与市场",
-    "tech": "科技与AI产业前沿",
-    "aerospace": "航天与前沿科技",
-    "commodities": "大宗商品与外汇",
-    "climate": "气候、安全与社会",
+    "games": "赛事战报",
+    "trades": "交易签约",
+    "stars": "球星动态",
+    "draft": "选秀与前瞻",
 }
 
 SECTION_SUBTITLES = {
-    "domestic": ["时政民生与政策法规", "产业经济与市场动态", "社会治理与安全整治"],
-    "international": ["多边外交与地缘冲突"],
-    "finance": ["市场行情与财经动态"],
-    "tech": ["AI算力与基础设施", "芯片竞争与产品动态", "AI研究与监管"],
-    "aerospace": ["航天发射与前沿突破"],
-    "commodities": ["大宗商品与外汇动态"],
-    "climate": ["极端天气与社会安全"],
+    "games": ["比赛结果与精彩瞬间"],
+    "trades": ["交易签约与薪资动态"],
+    "stars": ["球星新闻与伤病动态"],
+    "draft": ["选秀前瞻与实力排名"],
 }
 
-# 关键词分类映射（用于子板块分类）
+# 关键词分类映射
 KEYWORDS = {
-    "domestic_politics": ["政策", "法规", "民生", "保障", "规定", "法律", "法院", "判例", "网信办", "整治"],
-    "domestic_economy": ["企业", "市场", "股市", "A股", "经济", "产业", "手机", "芯片", "交易", "停牌", "业绩"],
-    "domestic_society": ["安全", "防汛", "救灾", "暴雨", "灾害", "火箭军", "导弹", "新能源", "机票", "附加费"],
-    "intl_conflict": ["关税", "贸易", "冲突", "战争", "制裁", "外交", "北约", "红海", "中东", "核污染"],
-    "finance_market": ["美股", "道指", "纳指", "标普", "欧股", "财报", "利润", "央行", "加息", "利率", "美联储"],
-    "tech_ai": ["AI", "人工智能", "大模型", "算力", "数据中心", "Anthropic", "OpenAI", "英伟达", "NVIDIA", "微软"],
-    "tech_chip": ["芯片", "半导体", "GPU", "字节", "苹果", "谷歌", "高通", "亚马逊", "SAP"],
-    "tech_regulation": ["监管", "安全标准", "版权", "隐私", "社交", "禁令", "OpenAI"],
-    "aerospace_space": ["火箭", "长征", "发射", "登月", "SpaceX", "卫星", "核聚变", "人造太阳", "ICML"],
-    "commodities_fx": ["原油", "黄金", "比特币", "咖啡", "外汇", "美元", "欧元", "日元", "韩元", "通胀"],
-    "climate_weather": ["高温", "洪水", "洪涝", "暴雨", "极端", "气候", "预警", "灾难", "台风", "干旱"],
+    "games_recap": ["比赛", "赛季", "季后赛", "总决赛", "比分", "绝杀", "三双", "MVP", "胜", "负", "淘汰", "晋级"],
+    "trades_deal": ["交易", "签约", "转会", "自由球员", "合同", "薪资", "顶薪", "续约", "裁", "换"],
+    "stars_news": ["詹姆斯", "库里", "杜兰特", "东契奇", "约基奇", "恩比德", "塔图姆", "字母哥", "伤病", "复出", "退役"],
+    "draft_outlook": ["选秀", "新秀", "状元", "乐透", "前瞻", "预测", "排名", "实力榜", "模拟"],
 }
 
 
@@ -382,38 +347,21 @@ def organize_news(all_news):
     organized = {}
     for section, items in all_news.items():
         subtitles = SECTION_SUBTITLES.get(section, ["综合要闻"])
-        if section == "domestic":
+        if section == "games":
             organized[section] = [
-                ("时政民生与政策法规", classify_news(items, KEYWORDS["domestic_politics"]) or items[:3]),
-                ("产业经济与市场动态", classify_news(items, KEYWORDS["domestic_economy"]) or items[3:6]),
-                ("社会治理与安全整治", classify_news(items, KEYWORDS["domestic_society"]) or items[6:9]),
+                ("比赛结果与精彩瞬间", items[:10]),
             ]
-        elif section == "tech":
+        elif section == "trades":
             organized[section] = [
-                ("AI算力与基础设施", classify_news(items, KEYWORDS["tech_ai"]) or items[:3]),
-                ("芯片竞争与产品动态", classify_news(items, KEYWORDS["tech_chip"]) or items[3:6]),
-                ("AI研究与监管政策", classify_news(items, KEYWORDS["tech_regulation"]) or items[6:9]),
+                ("交易签约与薪资动态", items[:10]),
             ]
-        elif section == "international":
+        elif section == "stars":
             organized[section] = [
-                ("国际政治与贸易动态", items[:5]),
-                ("多边外交与地缘冲突", classify_news(items, KEYWORDS["intl_conflict"]) or items[5:8]),
+                ("球星新闻与伤病动态", items[:10]),
             ]
-        elif section == "finance":
+        elif section == "draft":
             organized[section] = [
-                ("市场行情与财经动态", items[:8]),
-            ]
-        elif section == "aerospace":
-            organized[section] = [
-                ("航天发射与前沿突破", items[:6]),
-            ]
-        elif section == "commodities":
-            organized[section] = [
-                ("大宗商品与外汇动态", items[:6]),
-            ]
-        elif section == "climate":
-            organized[section] = [
-                ("极端天气与社会安全", items[:6]),
+                ("选秀前瞻与实力排名", items[:10]),
             ]
         else:
             organized[section] = [(subtitles[0], items[:6])]
@@ -435,19 +383,19 @@ def build_headline_cards(all_news):
     cards = []
     colors = ["green", "alt", "", "green", "alt", "", "green", "alt"]
     tags = [
-        ("国内 · 要闻", "green"),
-        ("贸易 · 关税", "alt"),
-        ("财经 · 市场", ""),
-        ("科技 · AI", "green"),
-        ("航天 · 前沿", ""),
-        ("地缘 · 安全", "alt"),
-        ("气候 · 极端", "green"),
-        ("大宗 · 外汇", ""),
+        ("赛事 · 战报", "green"),
+        ("交易 · 签约", "alt"),
+        ("球星 · 动态", ""),
+        ("选秀 · 前瞻", "green"),
+        ("NBA · 热点", "alt"),
+        ("篮球 · 精彩", ""),
+        ("赛季 · 排名", "green"),
+        ("MVP · 数据", ""),
     ]
 
     # 从各板块各取1-2条
     selection = []
-    for section in ["domestic", "international", "finance", "tech", "aerospace", "climate"]:
+    for section in ["games", "trades", "stars", "draft"]:
         items = all_news.get(section, [])
         if items:
             selection.append((section, items[0]))
@@ -599,7 +547,7 @@ def generate_html(all_news, organized, issue_num):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>国际及国内热点新闻行业日报 · {TODAY_STR}</title>
+<title>NBA篮球新闻日报 · {TODAY_STR}</title>
 <style>
   :root{{
     --bg:#f4f5f8; --bg2:#ffffff; --ink:#1a2233; --muted:#5c6577;
@@ -680,7 +628,7 @@ def generate_html(all_news, organized, issue_num):
 
 <header class="masthead">
   <div class="kicker">International &amp; Domestic Daily Briefing</div>
-  <h1>国际及国内热点新闻行业日报</h1>
+  <h1>NBA篮球新闻日报</h1>
   <p class="sub">覆盖国内时政民生、全球地缘政治、财经市场、科技 AI、航天前沿、大宗商品与气候安全的一站式每日要闻速递。</p>
   <div class="meta-row">
     <span><span class="dot"></span>{TODAY_STR}（{TODAY_WEEKDAY}）</span>
@@ -736,11 +684,11 @@ def push_to_wechat(html_content, all_news, issue_num):
         return False
 
     # 构建微信推送内容（精简版 HTML，适合手机阅读）
-    title = f"国际及国内热点新闻行业日报 · {TODAY_STR}（第{issue_num}期）"
+    title = f"NBA篮球新闻日报 · {TODAY_STR}（第{issue_num}期）"
 
     # 头条速览（取前6条）
     headlines = []
-    for section in ["domestic", "international", "finance", "tech", "aerospace", "climate"]:
+    for section in ["games", "trades", "stars", "draft"]:
         items = all_news.get(section, [])
         if items:
             for item in items[:1]:
@@ -749,7 +697,7 @@ def push_to_wechat(html_content, all_news, issue_num):
 
     # 各板块摘要（每板块取前3条标题）
     sections_html = []
-    section_order = ["domestic", "international", "finance", "tech", "aerospace", "commodities", "climate"]
+    section_order = ["games", "trades", "stars", "draft"]
     for section in section_order:
         items = all_news.get(section, [])
         if not items:
@@ -763,7 +711,7 @@ def push_to_wechat(html_content, all_news, issue_num):
 
     content = f"""<div style="font-family:sans-serif;max-width:680px;margin:0 auto;">
 <div style="background:linear-gradient(135deg,#0f1e4d 0%,#1447e6 100%);color:#fff;padding:24px 20px;border-radius:12px;margin-bottom:20px;">
-<h1 style="font-size:22px;margin:0 0 8px;">国际及国内热点新闻行业日报</h1>
+<h1 style="font-size:22px;margin:0 0 8px;">NBA篮球新闻日报</h1>
 <p style="margin:0;opacity:.85;font-size:14px;">{TODAY_STR}（{TODAY_WEEKDAY}）· 第 {issue_num} 期 · 北京时间 08:00 自动生成</p>
 </div>
 <h2 style="font-size:17px;border-bottom:2px solid #1447e6;padding-bottom:8px;">今日头条速览</h2>
@@ -817,7 +765,7 @@ def cleanup_old_reports(max_days=MAX_REPORT_DAYS):
     removed = 0
 
     for entry in os.listdir(WORKSPACE):
-        if not entry.startswith("intl-news-daily-"):
+        if not (entry.startswith("intl-news-daily-") or entry.startswith("nba-daily-")):
             continue
         entry_path = os.path.join(WORKSPACE, entry)
         if not os.path.isdir(entry_path):
@@ -942,7 +890,7 @@ def build_index_page(index_path, issue_num):
                     reports.append((date_str, entry, f"{entry}/{entry}.html"))
 
     items_html = "\n".join([
-        f'<li><a href="{path}"><span class="date">{date}</span><span class="title">国际及国内热点新闻行业日报</span></a></li>'
+        f'<li><a href="{path}"><span class="date">{date}</span><span class="title">NBA篮球新闻日报</span></a></li>'
         for date, slug, path in reports
     ])
 
@@ -970,7 +918,7 @@ def build_index_page(index_path, issue_num):
 </head>
 <body>
 <div class="container">
-  <h1>每日国际及国内热点新闻行业日报</h1>
+  <h1>每日NBA篮球新闻日报</h1>
   <p class="subtitle">每日 08:00 北京时间自动生成 · 第 {issue_num} 期</p>
   <ul>
 {items_html}
@@ -986,3 +934,4 @@ def build_index_page(index_path, issue_num):
 
 if __name__ == "__main__":
     main()
+
