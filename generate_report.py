@@ -223,22 +223,33 @@ def strip_source_from_title(title):
 
 
 def dedup_title_summary(title, summary):
-    """如果摘要和标题重复或摘要为标题的子串，返回空摘要"""
+    """从摘要中提取标题之外的额外内容作为主要内容"""
     if not summary:
         return ""
-    title_clean = title.strip()
-    summary_clean = summary.strip()
-    # 完全重复
-    if title_clean == summary_clean:
+    t = title.strip()
+    s = summary.strip()
+    
+    # 如果摘要以标题开头，提取标题之后的内容
+    if s.startswith(t):
+        extra = s[len(t):].strip()
+        extra = re.sub(r'^[\s\u00a0&nbsp;]+', '', extra)
+        if len(extra) > 10:
+            return extra
         return ""
-    # 摘要是标题的子串
-    if title_clean in summary_clean or summary_clean in title_clean:
+    
+    # 如果去掉来源后缀的标题和摘要开头匹配
+    t2 = strip_source_from_title(t)
+    if t2 and s.startswith(t2):
+        extra = s[len(t2):].strip()
+        extra = re.sub(r'^[\s\u00a0]+', '', extra)
+        if len(extra) > 10:
+            return extra
         return ""
-    # 去掉来源后缀的标题和摘要重复
-    title_no_source = strip_source_from_title(title_clean)
-    if title_no_source and (title_no_source in summary_clean or summary_clean in title_no_source):
+    
+    if t == s:
         return ""
-    return summary_clean
+    
+    return s
 
 
 def is_chinese_text(text):
