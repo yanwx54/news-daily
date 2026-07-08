@@ -282,10 +282,19 @@ def push_to_draft(all_news, issue_num, today_str, today_weekday):
 
     payload = {"articles": [article]}
 
+    # 调试输出：打印各字段字节数
+    print(f"  [DEBUG] 草稿字段大小:")
+    print(f"    title:  {len(title.encode('utf-8'))} 字节 | {title}")
+    print(f"    author: {len(article['author'].encode('utf-8'))} 字节 | {article['author']}")
+    print(f"    digest: {len(digest.encode('utf-8'))} 字节 | {digest[:50]}")
+    print(f"    content: {len(content.encode('utf-8'))} 字节")
+
     try:
+        # 使用 ensure_ascii=False 发送原生 UTF-8，避免中文被转义为 \uXXXX 导致长度膨胀
+        json_str = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         resp = requests.post(
             url,
-            json=payload,
+            data=json_str,
             timeout=60,
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
