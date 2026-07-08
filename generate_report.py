@@ -197,6 +197,50 @@ def clean_text(text):
     return text.strip()
 
 
+def strip_source_from_title(title):
+    """从标题中去除来源后缀，如 '新闻标题 - 人民网' -> '新闻标题'"""
+    if not title:
+        return title
+    # Google News RSS 标题格式: "新闻标题 - 来源" 或 "新闻标题 --来源"
+    # 匹配末尾的 " - 来源" 或 " -- 来源"
+    patterns = [
+        r'\s+[-–—]+\s+\S+$',  # " - 来源" (最后一个空格-空格-来源)
+        r'\s+[-–—]+\s+.+$',   # " - 任意来源"
+    ]
+    for pattern in patterns:
+        # 只在标题中有中文时才处理（避免误伤英文标题）
+        if re.search(r'[\u4e00-\u9fff]', title):
+            # 找到最后一个 " - " 的位置
+            match = re.search(r'\s+[-–—]+\s+', title)
+            if match:
+                # 确保去掉来源后标题还剩足够内容
+                prefix = title[:match.start()].strip()
+                suffix = title[match.end():].strip()
+                # 如果来源部分较短（<=15字符，通常是媒体名），且标题部分较长（>5字符），则去掉
+                if len(prefix) > 5 and len(suffix) <= 15:
+                    return prefix
+    return title
+
+
+def dedup_title_summary(title, summary):
+    """如果摘要和标题重复或摘要为标题的子串，返回空摘要"""
+    if not summary:
+        return ""
+    title_clean = title.strip()
+    summary_clean = summary.strip()
+    # 完全重复
+    if title_clean == summary_clean:
+        return ""
+    # 摘要是标题的子串
+    if title_clean in summary_clean or summary_clean in title_clean:
+        return ""
+    # 去掉来源后缀的标题和摘要重复
+    title_no_source = strip_source_from_title(title_clean)
+    if title_no_source and (title_no_source in summary_clean or summary_clean in title_no_source):
+        return ""
+    return summary_clean
+
+
 def is_chinese_text(text):
     """判断文本是否主要为中文（含中文字符占比 > 30%）"""
     if not text:
@@ -224,6 +268,10 @@ def fetch_rss(source):
             summary = re.sub(r'<[^>]+>', '', summary)
             title = clean_text(title)
             summary = clean_text(summary)
+            # 去除标题中的来源后缀（如 "标题 - 人民网" -> "标题"）
+            title = strip_source_from_title(title)
+            # 如果摘要和标题重复，清空摘要
+            summary = dedup_title_summary(title, summary)
             if len(summary) > 200:
                 summary = summary[:197] + "..."
 
